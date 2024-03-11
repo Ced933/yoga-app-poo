@@ -4,7 +4,7 @@ const btnContainer:any = document.querySelector(".btn-container");
 
 
 const main:any = document.querySelector('main');
-let rebootArray = [
+let basicArray = [
     {
         pic: 0,
         min:1
@@ -46,54 +46,82 @@ let rebootArray = [
         min:1
     }
 
-]
+];
+let exerciceArray:any =[];
 
-let exerciceArray = [
-    {
-        pic: 0,
-        min:1
-    },
-    {
-        pic: 1,
-        min:1
-    },
-    {
-        pic: 2,
-        min:1
-    },
-    {
-        pic: 3,
-        min:1
-    },
-    {
-        pic: 4,
-        min:1
-    },
-    {
-        pic: 5,
-        min:1
-    },
-    {
-        pic: 6,
-        min:1
-    },
-    {
-        pic: 7,
-        min:1
-    },
-    {
-        pic: 8,
-        min:1
-    },
-    {
-        pic: 9,
-        min:1
+// fonction appeler une fois / s'il y a un localstorage existant alors tu me récupère les données qui sont dedans sinon si t'es vide je t'affect le basicArray 
+(()=>{
+    if(localStorage.exercice){
+        // dans notre tableau on transforme les string en objet 
+        exerciceArray = JSON.parse(localStorage.exercice)
+    
+       
+    }else {
+        exerciceArray = basicArray
+        console.log(exerciceArray)
+        // localStorage.setItem('exercice', JSON.stringify(exerciceArray) )
     }
 
-]
+})()
+
 
 class Exercice{
+    index: number;
+    minutes:number;
+    seconds: any;
+    constructor(){
+        this.index = 0;
+        this.minutes = exerciceArray[this.index].min;
+        this.seconds = 0;
+    }
 
+    updateCountdown(){
+        this.seconds = this.seconds < 10 ? "0"+this.seconds : this.seconds;
+
+        // on fait des fonction récursive qui se lance toute seule 
+        setTimeout(() =>{
+            // si minute = a 0 et que seconde aussi alors 
+            if(this.minutes === 0 && this.seconds === "00"){
+                // on passe a l'index suivant 
+                this.index++;
+                // petite sonette a la fin de chaque exercice  
+                this.ring();
+                // tant que l'index est inférieur a la longueur du tableau on continu 
+                if( this.index < exerciceArray.length){
+                    this.minutes= exerciceArray[this.index].min;
+                    this.seconds = 59;
+                    this.updateCountdown();
+
+                }else{
+                    // si on arrive a la fin du tableau alors on lance une nouvelle page 
+                    return page.finish()
+                }
+            }else if(this.seconds === "00"){
+                this.minutes--;
+                this.seconds = 59;
+                this.updateCountdown();
+            }
+            else{
+                this.seconds--;
+                this.updateCountdown();
+            }
+
+        },10);
+
+       return main.innerHTML = `
+        <div class="exercice-container">
+            <p>${this.minutes} : ${this.seconds}</p>
+            <img src="./img/${exerciceArray[this.index].pic}.png" />
+            <div>${this.index + 1} / ${exerciceArray.length}</div>
+        </div>
+        `
+    }
+
+    ring(){
+        const audio = new Audio();
+        audio.src = "ring.mp3";
+        audio.play();
+    }
 }
 
 const utils ={
@@ -112,8 +140,10 @@ const utils ={
                     if(exo.pic == e.target.id){
                         // les minutes seront stocké dans l'objet dans min  
                        exo.min = parseInt(e.target.value)
+                       this.store();
                     }
                 })
+                
             })
            
         )
@@ -132,6 +162,7 @@ const utils ={
                      [exerciceArray[position],exerciceArray[position- 1]] = [exerciceArray[position- 1],exerciceArray[position]]
                      console.log(exerciceArray)
                      page.lobby();
+                     this.store();
                     }else{
                         position++;
                       
@@ -145,17 +176,21 @@ const utils ={
         deleteBtns.forEach((btn:any)=>{
             btn.addEventListener('click', (e:any)=>{
                 console.log(e.target.dataset.pic)
-                exerciceArray.map((exo)=>{
-                    let result = exerciceArray.filter((exo) =>
+               
+                    let result = exerciceArray.filter((exo:any) =>
                     // retourne tous les items sauf celui sur lequel j'ai cliqué 
                         exo.pic != e.target.dataset.pic
+
                     )
                     // on donne nos nouveau resultats à exerciceArray
                     exerciceArray = result;
                     console.log(exerciceArray)
-                })
+                
+                   this.store()
+                
                 // on recharge la page pour actualiser les cartes 
                 page.lobby();
+
             })
 
         })
@@ -165,11 +200,17 @@ const utils ={
     reboot: function(){
         const reboot:any = document.querySelector("#reboot");
         reboot.addEventListener('click', ()=> {
-            exerciceArray = rebootArray;
+            exerciceArray = basicArray;
             page.lobby();
             console.log(exerciceArray);
+            // on est déja dans l'objet utils alors pour lui faire réference on met this
+           this.store()
 
         })
+    },
+    store: function(){
+        // dans le localStorage on transforme les données objet en string lisible 
+        localStorage.exercice = JSON.stringify(exerciceArray)
     }
 
 }
@@ -183,8 +224,7 @@ const utils ={
 const page = {
     lobby: function(){
 
-
-
+console.log(exerciceArray)
 
         let mapArray = exerciceArray.map((exo:any) =>{
 
@@ -210,14 +250,18 @@ const page = {
        utils.handleEventMinutes();
        utils.handleEventArrow();
        utils.deleteItem();
-       utils.reboot()
+       utils.reboot();
+       const start:any = document.querySelector('#start');
+       start.addEventListener('click',() => {this.routine()})
   
 
     },
     routine : function(){
+        const exercice = new Exercice();
+
         utils.pageContent(
             "Routine",
-            "Exercice avec chronos",
+            exercice.updateCountdown(),
             null
         )
 
@@ -229,6 +273,11 @@ const page = {
             "<button id='start'>Recommencer</button>",
             "<button id='reboot' class='btn-reboot' >Réinitialiser <i class='fas fa-times-circle'></i></button>"
         )
+
+        const restart:any = document.querySelector('#start')
+        restart.addEventListener('click', ()=> this.routine())
+        const reboot:any = document.querySelector('#reboot')
+        reboot.addEventListener('click', ()=> utils.reboot())
     }
 }
 
